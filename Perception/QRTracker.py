@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import pyrealsense2 as rs
+# import pyrealsense2 as rs
 import depthai as dai
 
 # Choose your camera: 'realsense' or 'luxonis'
@@ -8,16 +8,24 @@ CAMERA_TYPE = 'luxonis'
 
 def detect_qr_and_get_distance(color_frame, depth_frame, depth_scale):
     qr_detector = cv2.QRCodeDetector()
-    data, points, _ = qr_detector.detectAndDecode(color_frame)
+
+    gray_frame = cv2.cvtColor(color_frame, cv2.COLOR_BGR2GRAY)
+    enhanced_frame = cv2.equalizeHist(gray_frame)
+
+    scaled_frame = cv2.resize(enhanced_frame, None, fx=1.5, fy=1.5)
+
+    data, points, _ = qr_detector.detectAndDecode(scaled_frame)
+
+    distance = None
 
     if points is not None and len(points) > 0:
-        points = points[0].astype(int)
+        points = (points/1.5).astype(int)
 
         # Draw the QR code outline
-        for i in range(len(points)):
-            pt1 = tuple(points[i])
-            pt2 = tuple(points[(i + 1) % len(points)])
-            cv2.line(color_frame, pt1, pt2, (0, 255, 0), 2)
+        #for i in range(len(points)):
+        #    pt1 = tuple(points[i])
+         #   pt2 = tuple(points[(i + 1) % len(points)])
+         #   cv2.line(color_frame, pt1, pt2, (0, 255, 0), 2)
 
         # Get the center point of the QR code
         cx = int(np.mean(points[:, 0]))
@@ -25,17 +33,6 @@ def detect_qr_and_get_distance(color_frame, depth_frame, depth_scale):
 
         # Estimate the distance
         distance = depth_frame[cy, cx] * depth_scale
-
-        # Show distance on screen
-        cv2.putText(
-            color_frame, 
-            f"Distance: {distance:.2f} meters", 
-            (cx - 50, cy - 10), 
-            cv2.FONT_HERSHEY_SIMPLEX, 
-            0.5, 
-            (0, 255, 255), 
-            2
-        )
 
         # Show the QR data (if any)
         if data:
@@ -48,6 +45,16 @@ def detect_qr_and_get_distance(color_frame, depth_frame, depth_scale):
                 (255, 0, 0), 
                 2
             )
+        else:
+            cv2.putText(color_frame, "No QR code detected", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, .07, (0, 0, 255), 2)
+
+        #if distance is not None:
+            cv2.putText(color_frame, f"Distance: {distance:.2f} meters",
+                        (10, color_frame.shape[0] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, .07, (0, 255, 255), 2)
+
+        cv2.imshow("Preprocessed Frame (QR Detection)", enhanced_frame)
 
     return color_frame
 

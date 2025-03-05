@@ -13,7 +13,7 @@ def callback(packet):
         # Expand bounding box
         bbox = (max(0, bbox[0] * 0.9), max(0, bbox[1] * 0.9),
                 min(packet.frame.shape[1], bbox[2] * 1.1), min(packet.frame.shape[0], bbox[3] * 1.1))
-        bbox = np.int0(bbox)
+        bbox = np.intp(bbox)
         cropped_qr = packet.frame[bbox[1]:bbox[3], bbox[0]:bbox[2]]  # crop QR code
         cropped_qr = 255 - cropped_qr  # invert colors for revert black and white
 
