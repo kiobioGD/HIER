@@ -4,7 +4,7 @@ import pyrealsense2 as rs
 import depthai as dai
 
 # Choose your camera: 'realsense' or 'luxonis'
-CAMERA_TYPE = 'realsense'
+CAMERA_TYPE = 'luxonis'
 
 def detect_qr_and_get_distance(color_frame, depth_frame, depth_scale):
     qr_detector = cv2.QRCodeDetector()
@@ -102,6 +102,18 @@ def run_luxonis():
     stereo = pipeline.create(dai.node.StereoDepth)
     xout_rgb = pipeline.create(dai.node.XLinkOut)
     xout_depth = pipeline.create(dai.node.XLinkOut)
+
+    cam = pipeline.create(dai.node.MonoCamera)
+    cam.setBoardSocket(dai.CameraBoardSocket.LEFT)
+    cam.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+
+    cam.out.link(stereo.left)
+
+    cam2 = pipeline.create(dai.node.MonoCamera)
+    cam2.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+    cam2.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+
+    cam2.out.link(stereo.right)
 
     # Configure camera settings
     cam_rgb.setBoardSocket(dai.CameraBoardSocket.RGB)
