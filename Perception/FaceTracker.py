@@ -1,6 +1,7 @@
 import cv2
 import depthai as dai
 import numpy as np
+import blobconverter
 
 
 def create_pipeline():
@@ -17,7 +18,7 @@ def create_pipeline():
     cam_rgb.setBoardSocket(dai.CameraBoardSocket.RGB)
 
     # Load the face detection model
-    face_det_nn.setBlobPath(dai.BlobPath("face-detection-retail-0004_openvino_2021.4_6shave.blob"))
+    face_det_nn.setBlobPath("face-detection-retail-0004.blob")
     face_det_nn.setConfidenceThreshold(0.5)
 
     # Configure stereo depth
