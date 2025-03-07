@@ -6,55 +6,80 @@ import depthai as dai
 # Choose your camera: 'realsense' or 'luxonis'
 CAMERA_TYPE = 'luxonis'
 
-def detect_qr_and_get_distance(color_frame, depth_frame, depth_scale):
+def get_distance(event, x, y, flags, param):
+    if event == cv2.EVENT_LBUTTONDOWN:
+        depth_frame, depth_scale = param
+        if depth_frame is not None:
+            distance = depth_frame[y, x] * depth_scale
+            print(f"Distance at ({x}, {y}): {distance:.3f} meters")
+
+def detect_qr_and_get_distance(color_frame, depth_frame, depth_scale, depth_color):
     qr_detector = cv2.QRCodeDetector()
 
     gray_frame = cv2.cvtColor(color_frame, cv2.COLOR_BGR2GRAY)
     enhanced_frame = cv2.equalizeHist(gray_frame)
 
-    scaled_frame = cv2.resize(enhanced_frame, None, fx=1.5, fy=1.5)
+    #scaled_frame = cv2.resize(enhanced_frame, None, fx=1.5, fy=1.5)
 
-    data, points, _ = qr_detector.detectAndDecode(scaled_frame)
+    data, points, _ = qr_detector.detectAndDecode(enhanced_frame)
 
     distance = None
 
     if points is not None and len(points) > 0:
-        points = (points/1.5).astype(int)
-
-        # Draw the QR code outline
-        #for i in range(len(points)):
-        #    pt1 = tuple(points[i])
-         #   pt2 = tuple(points[(i + 1) % len(points)])
-         #   cv2.line(color_frame, pt1, pt2, (0, 255, 0), 2)
+        #points = (points/1.5).astype(int)
 
         # Get the center point of the QR code
-        cx = int(np.mean(points[:, 0]))
-        cy = int(np.mean(points[:, 1]))
+        cx = int(np.mean(points[0][:, 0]))
+        cy = int(np.mean(points[0][:, 1]))
+        cx = np.clip(cx, 0, depth_frame.shape[0] -1)
+        cy = np.clip(cy, 0, depth_frame.shape[1] - 1)
+
+        #print(points.shape)
+        #for point in points[0]:
+        #    cv2.circle(color_frame, point, 5, (0, 0, 255), -1)
+
+        cv2.circle(color_frame, (cx, cy), 5, (0, 0, 255), -1)
+        cv2.circle(depth_color, (cx, cy), 5, (0, 255, 255), -1)
 
         # Estimate the distance
-        distance = depth_frame[cy, cx] * depth_scale
+        distance = depth_frame[cx, cy] * depth_scale
+
+        if distance is not None:
+            color_frame = cv2.putText(color_frame, f"Distance: {distance:.2f} meters",
+                        (10, color_frame.shape[0] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
+            depth_color = cv2.putText(depth_color, f"Distance: {distance:.2f} meters",
+                                      (10, depth_color.shape[0] - 10),
+                                      cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
 
         # Show the QR data (if any)
         if data:
             cv2.putText(
                 color_frame, 
-                f"QR Code: {data}", 
+                f"QR Code: {data}",
+
                 (10, 30), 
                 cv2.FONT_HERSHEY_SIMPLEX, 
-                0.7, 
+                1.0,
                 (255, 0, 0), 
                 2
             )
-        else:
-            cv2.putText(color_frame, "No QR code detected", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, .07, (0, 0, 255), 2)
+            cv2.putText(
+                depth_color,
+                f"QR Code: {data}",
 
-        #if distance is not None:
-            cv2.putText(color_frame, f"Distance: {distance:.2f} meters",
-                        (10, color_frame.shape[0] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, .07, (0, 255, 255), 2)
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1.0,
+                (255, 0, 0),
+                2
+            )
 
-        cv2.imshow("Preprocessed Frame (QR Detection)", enhanced_frame)
+    else:
+        color_frame = cv2.putText(color_frame, "No QR code detected", (30, 340),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
+        depth_color = cv2.putText(depth_color, "No QR code detected", (30, 340),
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
 
     return color_frame
 
@@ -153,11 +178,18 @@ def run_luxonis():
             # Depth scale for Luxonis (depth in mm)
             depth_scale = 0.001
 
+            color_image_resize = cv2.resize(color_image, (depth_image.shape[1], depth_image.shape[0]))
+
+            depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+
             # Detect QR and get distance
-            output_frame = detect_qr_and_get_distance(color_image, depth_image, depth_scale)
+            output_frame = detect_qr_and_get_distance(color_image_resize, depth_image, depth_scale, depth_colormap)
 
             # Show the output frame
             cv2.imshow("QR Tracking (Luxonis)", output_frame)
+            cv2.imshow("Depth Stream (Luxonis)", depth_colormap)
+            cv2.setMouseCallback("Depth Stream (Luxonis)", get_distance, (depth_image, depth_scale))
+            cv2.setMouseCallback("QR Tracking (Luxonis)", get_distance, (depth_image, depth_scale))
 
             # Exit on 'q' key
             if cv2.waitKey(1) & 0xFF == ord('q'):
