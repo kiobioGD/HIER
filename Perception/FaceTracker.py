@@ -87,16 +87,18 @@ def main():
                 # Get depth at the center of the face rectangle
                 face_center_x = (x1 + x2) // 2
                 face_center_y = (y1 + y2) // 2
+
+                # Draw face center
                 cv2.circle(rgb_frame, (face_center_x, face_center_y), 5, (0, 0, 255), -1)
 
+                # Map RGB to depth frame coordinates
+                fx = int(face_center_x * depth_frame.shape[1] / rgb_frame.shape[1])
+                fy = int(face_center_y * depth_frame.shape[0] / rgb_frame.shape[0])
 
-                fx = int(face_center_x * depth_frame.shape[0]/rgb_frame.shape[0])
-                fy = int(face_center_y * depth_frame.shape[1]/rgb_frame.shape[1])
+                fx = np.clip(fx, 0, depth_frame.shape[1] - 1)
+                fy = np.clip(fy, 0, depth_frame.shape[0] - 1)
 
-                fx = np.clip(fx, 0, depth_frame.shape[0] - 1)
-                fy = np.clip(fy, 0, depth_frame.shape[1] - 1)
-
-                distance = depth_frame[fx, fy] * depth_scale
+                distance = depth_frame[fy, fx] * depth_scale
 
                 # Draw the rectangle and distance
                 cv2.rectangle(rgb_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
